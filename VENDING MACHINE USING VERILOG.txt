@@ -1,0 +1,409 @@
+VENDING MACHINE
+
+
+DESIGN CODE
+
+`timescale 1ns / 1ps
+
+
+
+module vending_machine(
+
+    input clk, reset, cancel,
+
+    input [1:0] coin, sel,
+
+    output reg PrA, PrB, PrC, change
+
+);
+
+
+
+    // State encoding using parameter 
+
+    parameter S0 = 3'b000, S5 = 3'b001, S10 = 3'b010, S15 = 3'b011, S20 = 3'b100;
+
+
+
+    reg [2:0] current_state, next_state;
+
+
+
+    // Sequential logic for state transition
+
+    always @(posedge clk or posedge reset) begin
+
+        if (reset)
+
+            current_state <= S0; // Reset to initial state
+
+        else
+
+            current_state <= next_state;
+
+    end
+
+
+
+    // Next State Logic (Combinational)
+
+    always @(*) begin
+
+        case (current_state)
+
+            S0: begin
+
+                if (coin == 2'b01) next_state = S5;
+
+                else if (coin == 2'b10) next_state = S10;
+
+                else next_state = S0;
+
+            end
+
+
+
+            S5: begin
+
+                if (coin == 2'b01) next_state = S10;
+
+                else if (coin == 2'b10) next_state = S15;
+
+                else if (cancel) next_state = S0;
+
+                else next_state = S5;
+
+            end
+
+
+
+            S10: begin
+
+                if (coin == 2'b01) next_state = S15;
+
+                else if (coin == 2'b10) next_state = S20;
+
+                else if (cancel) next_state = S0;
+
+                else next_state = S10;
+
+            end
+
+
+
+            S15: begin
+
+                if (coin == 2'b01) next_state = S20;
+
+                else if (cancel) next_state = S0;
+
+                else next_state = S15;
+
+            end
+
+
+
+            S20: begin
+
+                if (cancel) next_state = S0;
+
+                else next_state = S20;
+
+            end
+
+
+
+            default: next_state = S0; // Default state
+
+        endcase
+
+    end
+
+
+
+    // Output Logic
+
+    always @(posedge clk or posedge reset) begin
+
+        if (reset) begin
+
+            PrA <= 0;
+
+            PrB <= 0;
+
+            PrC <= 0;
+
+            change <= 0;
+
+        end 
+
+        else begin
+
+            // Default values (avoid latches)
+
+            PrA <= 0;
+
+            PrB <= 0;
+
+            PrC <= 0;
+
+            change <= 0;
+
+
+
+            case (current_state)
+
+                S5: begin
+
+                    if (sel == 2'b00) begin
+
+                        PrA <= 1;  // Product A (Rs. 5)
+
+                        change <= 0; // No change needed
+
+                    end
+
+                end
+
+                
+
+                S10: begin
+
+                    if (sel == 2'b00) begin
+
+                        PrA <= 1;  // Product A (Rs. 5)
+
+                        change <= 1; // Rs. 5 change
+
+                    end
+
+                    else if (sel == 2'b01) begin
+
+                        PrB <= 1; // Product B (Rs. 10)
+
+                        change <= 0; // No change needed
+
+                    end
+
+                end
+
+                
+
+                S15: begin
+
+                    if (sel == 2'b01) begin
+
+                        PrB <= 1;  // Product B (Rs. 10)
+
+                        change <= 1; // Rs. 5 change
+
+                    end
+
+                end
+
+                
+
+                S20: begin
+
+                    if (sel == 2'b00) begin
+
+                        PrA <= 1;
+
+                        change <= 1; // Rs. 15 change
+
+                    end
+
+                    else if (sel == 2'b01) begin
+
+                        PrB <= 1;
+
+                        change <= 1; // Rs. 10 change
+
+                    end
+
+                    else if (sel == 2'b10) begin
+
+                        PrC <= 1; // Product C (Rs. 20)
+
+                        change <= 0; // No change needed
+
+                    end
+
+                end
+
+            endcase
+
+            
+
+            // Handle cancellation (return money)
+
+            if (cancel) 
+
+                change <= 1;
+
+        end
+
+    end
+
+endmodule
+
+
+
+
+TEST BENCH CODE
+
+`timescale 1ns / 1ps
+
+
+
+module vending_machine_tb;
+
+    // Inputs
+
+    reg clk, reset, cancel;
+
+    reg [1:0] coin, sel;
+
+    
+
+    // Outputs
+
+    wire PrA, PrB, PrC, change;
+
+
+
+    // Instantiate the vending machine module
+
+    vending_machine uut (
+
+        .clk(clk),
+
+        .reset(reset),
+
+        .cancel(cancel),
+
+        .coin(coin),
+
+        .sel(sel),
+
+        .PrA(PrA),
+
+        .PrB(PrB),
+
+        .PrC(PrC),
+
+        .change(change)
+
+    );
+
+
+
+    // Clock Generation: 10ns period (50MHz clock)
+
+    always #5 clk = ~clk; 
+
+
+
+    // Test Procedure
+
+    initial begin
+
+        // Initialize Inputs
+
+        clk = 0;
+
+        reset = 1;
+
+        cancel = 0;
+
+        coin = 2'b00;
+
+        sel = 2'b00;
+
+        
+
+        // Hold reset for 20 ns
+
+        #20 reset = 0;
+
+
+
+        // Test Case 1: Insert Rs. 5 and Buy Product A
+
+        #10 coin = 2'b01;   // Insert Rs. 5
+
+        #10 sel = 2'b00;    // Select Product A
+
+        #10 coin = 2'b00;   // Stop inserting coins
+
+        #20;
+
+
+
+        // Test Case 2: Insert Rs. 10 and Buy Product B
+
+        #10 coin = 2'b10;   // Insert Rs. 10
+
+        #10 sel = 2'b01;    // Select Product B
+
+        #20;
+
+
+
+        // Test Case 3: Insert Rs. 5 twice (Total Rs. 10) and Buy Product A (Expect Rs. 5 change)
+
+        #10 coin = 2'b01;   // Insert Rs. 5
+
+        #10 coin = 2'b01;   // Insert Rs. 5 again (Total Rs. 10)
+
+        #10 sel = 2'b00;    // Select Product A
+
+        #20;
+
+
+
+        // Test Case 4: Insert Rs. 20 and Buy Product C
+
+        #10 coin = 2'b10;   // Insert Rs. 10
+
+        #10 coin = 2'b10;   // Insert Rs. 10 again (Total Rs. 20)
+
+        #10 sel = 2'b10;    // Select Product C
+
+        #20;
+
+
+
+        // Test Case 5: Insert Rs. 10 and Cancel Transaction
+
+        #10 coin = 2'b10;   // Insert Rs. 10
+
+        #10 cancel = 1;     // Press Cancel
+
+        #10 cancel = 0;     // Release Cancel
+
+        #20;
+
+
+
+        // End Simulation
+
+        #50 $finish;
+
+    end
+
+
+
+    // Monitor the signals
+
+    initial begin
+
+        $monitor("Time = %d, Coin = %b, Sel = %b, Cancel = %b, PrA = %b, PrB = %b, PrC = %b, Change = %b",
+
+                  $time, coin, sel, cancel, PrA, PrB, PrC, change);
+
+    end
+
+
+
+endmodule
