@@ -38,5 +38,12 @@ vending-machine-verilog/
 - Simulation: Vivado Behavioral Simulation
 - Optional: GTKWave for waveform viewing
 
----
+## 🧪 How to Simulate
+
+1. Open Vivado
+2. Create a new project and add:
+   - `vending_machine.v` to sources
+   - `vending_tb.v` to simulation sources
+3. Run Behavioral Simulation
+4. Check output waveform or simulation console
 
